@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>deskScript — 引き出しで書くスクリプト言語</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IBM+Plex+Mono:wght@400;500;600&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:      #f4efdd;
+    --paper-2:    #ece2c6;
+    --paper-line: #d9c9a0;
+    --ink:        #2b2620;
+    --ink-soft:   #5b5245;
+    --wood:       #643dff;
+    --wood-dark:  #643dcc;
+    --brass:      #b8923f;
+    --stamp-red:  #a3383c;
+    --stamp-green:#3c6b4d;
+    --carbon:     #201c17;
+    --carbon-2:   #2c2620;
+    --accent:     #643dff;
+    --accent-dark:#4a29c9;
+    --accent-soft:rgba(100,61,255,.10);
+    --paper-shadow: 0 1px 0 rgba(43,38,32,.06), 0 10px 24px -14px rgba(43,38,32,.35);
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 700px at 85% -10%, rgba(100,61,255,.14), transparent 60%),
+      var(--paper);
+    color:var(--ink);
+    font-family:'Zen Kaku Gothic New', 'Hiragino Sans', sans-serif;
+    line-height:1.85;
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.5;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(43,38,32,.025) 0px, rgba(43,38,32,.025) 1px, transparent 1px, transparent 3px);
+  }
+  h1,h2,h3,.stamp,.tab-label{ font-family:'Special Elite', 'Zen Kaku Gothic New', monospace; }
+  code, pre, .mono{ font-family:'IBM Plex Mono', monospace; }
+  a{color:inherit;}
+  .wrap{max-width:1180px; margin:0 auto; padding:0 28px;}
+
+  /* ---------- layout: filing-cabinet sidebar + paper content ---------- */
+  .shell{ display:grid; grid-template-columns:264px 1fr; min-height:100vh; position:relative; z-index:1;}
+  @media (max-width:900px){ .shell{grid-template-columns:1fr;} }
+
+  .cabinet{
+    background:linear-gradient(180deg, var(--wood), var(--wood-dark) 85%);
+    border-right:10px solid var(--accent);
+    position:sticky; top:0; align-self:start; height:100vh; overflow-y:auto;
+    padding:26px 0 40px;
+  }
+  @media (max-width:900px){
+    .cabinet{ position:relative; height:auto; max-height:340px; border-right:none; border-bottom:10px solid var(--accent);}
+  }
+  .cabinet-brand{
+    padding:0 22px 22px; margin-bottom:6px; border-bottom:1px solid rgba(244,239,221,.15);
+  }
+  .cabinet-brand .mark{
+    color:#f4efdd; font-size:1.55rem; letter-spacing:.02em;
+  }
+  .cabinet-brand .sub{
+    color:#cbb98a; font-size:.72rem; letter-spacing:.14em; text-transform:uppercase; margin-top:6px;
+  }
+  .drawer-nav{ list-style:none; margin:14px 0 0; padding:0; }
+  .drawer-nav li{ margin:2px 10px; }
+  .drawer-nav a{
+    display:flex; align-items:center; gap:10px;
+    text-decoration:none; color:#f0e6c8;
+    padding:11px 14px; border-radius:3px 3px 3px 10px;
+    font-size:.86rem; letter-spacing:.02em;
+    border:1px solid transparent;
+    transition:background .15s ease, border-color .15s ease, transform .15s ease;
+  }
+  .drawer-nav a .pull{
+    width:9px; height:9px; border-radius:50%; background:var(--accent); flex:none;
+    box-shadow: inset 0 1px 1px rgba(0,0,0,.4), 0 0 0 2px rgba(100,61,255,.28);
+  }
+  .drawer-nav a:hover{ background:rgba(100,61,255,.16); border-color:rgba(100,61,255,.35); transform:translateX(2px); }
+  .drawer-nav .section-label{
+    color:#a3916a; font-size:.66rem; letter-spacing:.18em; text-transform:uppercase;
+    margin:20px 22px 6px; font-family:'IBM Plex Mono',monospace;
+  }
+
+  main{ position:relative; }
+
+  /* ---------- hero ---------- */
+  .hero{
+    padding:88px 0 70px;
+    background:
+      linear-gradient(180deg, transparent, var(--paper) 90%),
+      repeating-linear-gradient(115deg, rgba(43,38,32,.028) 0 2px, transparent 2px 26px);
+    border-bottom:1px solid var(--paper-line);
+  }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:'IBM Plex Mono',monospace; font-size:.72rem; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--ink-soft); background:var(--paper-2); border:1px solid var(--paper-line);
+    padding:6px 12px; border-radius:2px;
+  }
+  .hero h1{
+    font-size:clamp(2.5rem, 6vw, 4.6rem);
+    line-height:1.02; margin:22px 0 18px; color:var(--ink);
+  }
+  .hero h1 .stroke{ color:transparent; -webkit-text-stroke:1.5px var(--accent); }
+  .hero p.lead{ max-width:640px; font-size:1.12rem; color:var(--ink-soft); margin:0 0 30px;}
+  .hero-grid{ display:grid; grid-template-columns:1.1fr .9fr; gap:40px; align-items:center; }
+  @media (max-width:900px){ .hero-grid{ grid-template-columns:1fr; } }
+
+  .stamp{
+    display:inline-block; border:3px solid var(--accent); color:var(--accent);
+    padding:10px 18px; border-radius:6px; transform:rotate(-6deg);
+    font-size:1.05rem; letter-spacing:.12em; text-transform:uppercase;
+    position:relative; opacity:.92; mix-blend-mode:multiply;
+  }
+  .stamp::after{
+    content:""; position:absolute; inset:3px; border:1px solid var(--accent); border-radius:3px; opacity:.6;
+  }
+
+  /* file card holding the example code, like an index card pinned to the desk */
+  .index-card{
+    background:#fbf7ea; border:1px solid var(--paper-line); border-radius:4px;
+    box-shadow:var(--paper-shadow); transform:rotate(1.2deg);
+    padding:20px 20px 16px; position:relative;
+  }
+  .index-card::before{
+    content:""; position:absolute; top:-10px; left:26px; width:64px; height:20px;
+    background:var(--accent); border:1px solid var(--accent-dark); border-bottom:none;
+    clip-path:polygon(6% 0,94% 0,100% 100%,0 100%); opacity:.85;
+  }
+  .index-card .tag{
+    font-family:'IBM Plex Mono',monospace; font-size:.68rem; color:var(--ink-soft);
+    letter-spacing:.1em; margin-bottom:10px; display:block;
+  }
+
+  /* ---------- generic sections ---------- */
+  section.block{ padding:64px 0; border-bottom:1px solid var(--paper-line); }
+  section.block:last-of-type{ border-bottom:none; }
+  .block-head{ max-width:720px; margin-bottom:34px; }
+  .kicker{
+    font-family:'IBM Plex Mono',monospace; font-size:.72rem; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--accent);
+  }
+  .block-head h2{ font-size:clamp(1.7rem,3vw,2.3rem); margin:10px 0 12px; }
+  .block-head p{ color:var(--ink-soft); font-size:1.02rem; max-width:62ch;}
+
+  /* code blocks: "carbon copy" dark sheet */
+  pre.code{
+    background:linear-gradient(180deg, var(--carbon), var(--carbon-2));
+    color:#e9e2cf;
+    padding:20px 22px; border-radius:6px; overflow-x:auto;
+    font-size:.86rem; line-height:1.7; box-shadow:var(--paper-shadow);
+    border:1px solid #14110d;
+    position:relative;
+  }
+  pre.code::before{
+    content:"CARBON COPY"; position:absolute; top:8px; right:14px;
+    font-family:'IBM Plex Mono',monospace; font-size:.6rem; letter-spacing:.14em;
+    color:#7a705a;
+  }
+  pre.code .c1{color:#a996ff;}   /* keyword */
+  pre.code .c2{color:#8fb996;}   /* string */
+  pre.code .c3{color:#7a93b8;}   /* comment */
+  pre.code .c4{color:#e9e2cf;}
+
+  /* ---------- reference cards (drawer-pull index cards grid) ---------- */
+  .ref-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:20px; }
+  .ref-card{
+    background:#fbf7ea; border:1px solid var(--paper-line); border-radius:4px;
+    box-shadow:var(--paper-shadow); padding:20px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .ref-card .ref-title{ display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .ref-card h3{ font-size:1.02rem; margin:0; color:var(--ink); }
+  .ref-card .badge{
+    font-family:'IBM Plex Mono',monospace; font-size:.62rem; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--accent-dark); background:var(--accent-soft); border:1px solid rgba(100,61,255,.28);
+    padding:3px 8px; border-radius:2px; white-space:nowrap;
+  }
+  .ref-card p{ margin:0; color:var(--ink-soft); font-size:.92rem; }
+  .ref-card code.inline, p code.inline, li code.inline{
+    font-family:'IBM Plex Mono',monospace; background:var(--accent-soft); border:1px solid rgba(100,61,255,.25);
+    padding:1px 6px; border-radius:3px; font-size:.85em; color:var(--accent-dark);
+  }
+
+  /* ---------- pairing table ---------- */
+  .pair-table{ width:100%; border-collapse:collapse; background:#fbf7ea; border:1px solid var(--paper-line); border-top:3px solid var(--accent); border-radius:4px; overflow:hidden; box-shadow:var(--paper-shadow);}
+  .pair-table th, .pair-table td{ text-align:left; padding:14px 16px; border-bottom:1px solid var(--paper-line); font-size:.92rem; vertical-align:top;}
+  .pair-table th{ background:var(--paper-2); font-family:'IBM Plex Mono',monospace; font-size:.68rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-soft);}
+  .pair-table tr:last-child td{ border-bottom:none; }
+
+  /* ---------- engine table ---------- */
+  .file-table{ width:100%; border-collapse:collapse; }
+  .file-table th, .file-table td{ text-align:left; padding:11px 14px; border-bottom:1px dashed var(--paper-line); font-size:.9rem;}
+  .file-table th{ font-family:'IBM Plex Mono',monospace; font-size:.66rem; letter-spacing:.1em; text-transform:uppercase; color:var(--ink-soft); border-bottom:1px solid var(--paper-line);}
+
+  /* ---------- applications ---------- */
+  .app-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:22px; }
+  .app-card{ border-left:3px solid var(--accent); padding-left:16px; }
+  .app-card .num{ font-family:'IBM Plex Mono',monospace; color:var(--accent); font-size:.78rem; letter-spacing:.1em; }
+  .app-card h3{ margin:6px 0 8px; font-size:1.05rem; }
+  .app-card p{ margin:0; color:var(--ink-soft); font-size:.92rem; }
+
+  /* ---------- caution memo ---------- */
+  .memo{
+    background:
+      linear-gradient(180deg, #fff9e6, #fdf3d0);
+    border:1px solid #e3c774; border-left:6px solid var(--stamp-red);
+    border-radius:2px; padding:22px 24px; box-shadow:var(--paper-shadow);
+    position:relative;
+  }
+  .memo::before{
+    content:"回覧"; position:absolute; top:-14px; left:22px; background:var(--stamp-red); color:#fff;
+    font-family:'IBM Plex Mono',monospace; font-size:.68rem; letter-spacing:.14em;
+    padding:4px 10px; border-radius:2px; box-shadow:0 3px 6px rgba(0,0,0,.2);
+  }
+  .memo h3{ margin:8px 0 4px; font-size:1rem; color:var(--stamp-red); }
+  .memo p{ margin:0 0 16px; color:var(--ink); font-size:.94rem; }
+  .memo p:last-child{ margin-bottom:0; }
+
+  footer{
+    padding:40px 0 60px; text-align:center; color:var(--ink-soft); font-size:.82rem;
+    font-family:'IBM Plex Mono',monospace; letter-spacing:.04em;
+  }
+
+  ::selection{ background:#e3c774; color:var(--ink); }
+
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto;}
+    .drawer-nav a{transition:none;}
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ============ filing cabinet sidebar ============ -->
+  <nav class="cabinet" aria-label="目次">
+    <div class="cabinet-brand">
+      <div class="mark">deskScript</div>
+      <div class="sub">Filing Cabinet / 目次</div>
+    </div>
+
+    <div class="section-label">Start</div>
+    <ul class="drawer-nav">
+      <li><a href="#overview"><span class="pull"></span>deskScriptとは</a></li>
+      <li><a href="#example"><span class="pull"></span>最初の一枚</a></li>
+    </ul>
+
+    <div class="section-label">Reference</div>
+    <ul class="drawer-nav">
+      <li><a href="#control"><span class="pull"></span>制御構文</a></li>
+      <li><a href="#class"><span class="pull"></span>クラス</a></li>
+      <li><a href="#object"><span class="pull"></span>オブジェクト</a></li>
+      <li><a href="#setin"><span class="pull"></span>@setin 制御</a></li>
+      <li><a href="#lock"><span class="pull"></span>ロック</a></li>
+      <li><a href="#misc"><span class="pull"></span>その他の構文</a></li>
+      <li><a href="#pairing"><span class="pull"></span>@タグの規則</a></li>
+    </ul>
+
+    <div class="section-label">Reading Room</div>
+    <ul class="drawer-nav">
+      <li><a href="#engines"><span class="pull"></span>エンジン構成</a></li>
+      <li><a href="#applications"><span class="pull"></span>応用法</a></li>
+      <li><a href="#caution"><span class="pull"></span>使うときの注意点</a></li>
+    </ul>
+  </nav>
+
+  <main>
+
+    <!-- ============ hero ============ -->
+    <header class="hero">
+      <div class="wrap">
+        <div class="hero-grid">
+          <div>
+            <span class="eyebrow">.ds file / desk &amp; drawer 比喩言語</span>
+            <h1>引き出しを<br>開けたら、<span class="stroke">処理</span>が<br>出てくる。</h1>
+            <p class="lead">
+              deskScriptは、オフィスの「デスク」と「引き出し」の比喩でプログラムの流れを表す、実験的な自作スクリプト言語です。
+              承認印を押すように分岐し、鍵付き引き出しのように排他ロックをかけ、共有キャビネットのようにデータを持ち回ります。
+            </p>
+            <span class="stamp">deskScript v1</span>
+          </div>
+
+          <div class="index-card">
+            <span class="tag">SAMPLE — greetDesk.ds</span>
+<pre class="code" style="box-shadow:none;border:none;background:transparent;color:#3a3226;padding:0;"><span class="c1" style="color:#a996ff;">desk</span>:greetDesk(<span class="c1" style="color:#a996ff;">string</span> name){
+   <span class="c1" style="color:#a996ff;">drawer</span>:greetDrawer(action01){
+      host.var.string:userName(id, name)
+      <span class="c1" style="color:#a996ff;">inreturn</span>:greetReturn{
+         <span class="c2" style="color:#3c6b4d;">"こんにちは、"</span>, userName, <span class="c2" style="color:#3c6b4d;">"さん！\n"</span>
+      }
+   }
+   <span class="c1" style="color:#a996ff;">outreturn</span>{ greetReturn }
+}</pre>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ============ overview ============ -->
+    <section class="block" id="overview">
+      <div class="wrap">
+        <div class="block-head">
+          <span class="kicker">01 — Overview</span>
+          <h2>deskScriptとは</h2>
+          <p>処理のまとまりを <code class="inline">desk</code>（デスク）、その中の実処理を <code class="inline">drawer</code>（引き出し）として書きます。デスクに引数を渡して呼び出すと、対応するdrawerの <code class="inline">inreturn</code> ブロックが評価され、<code class="inline">outreturn</code> で指定した結果が文字列として返ります。</p>
+        </div>
+
+        <div class="ref-grid">
+          <div class="ref-card">
+            <div class="ref-title"><h3>グローバル変数</h3><span class="badge">set:var</span></div>
+            <p><code class="inline">set:var(型, global/スコープ/変数名) = 値</code> でプロセス内グローバル変数を定義します。</p>
+          </div>
+          <div class="ref-card">
+            <div class="ref-title"><h3>関数</h3><span class="badge">function:</span></div>
+            <p><code class="inline">function:名前(引数){...}</code> で再利用可能な処理を定義できます。</p>
+          </div>
+          <div class="ref-card">
+            <div class="ref-title"><h3>イベントフック</h3><span class="badge">timing:</span></div>
+            <p><code class="inline">timing:キー{...}</code> でデスク開始/終了、ロック/アンロック、変数変更/削除、for・foreverの開始/終了などにフックできます。</p>
+          </div>
+          <div class="ref-card">
+            <div class="ref-title"><h3>ブラウザのDOM操作</h3><span class="badge">HTML.document</span></div>
+            <p><code class="inline">import.ds.txt</code> に <code class="inline">HTML</code> と書くだけで、<code class="inline">HTML.document.getElementById(...)</code> のように本物のDOM操作がそのまま呼べます（<code class="inline">wnode.js</code>経由でブラウザ実行時）。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ quick example ============ -->
+    <section class="block" id="example">
+      <div class="wrap">
+        <div class="block-head">
+          <span class="kicker">02 — First Sheet</span>
+          <h2>最初の一枚</h2>
+          <p>デスクを1つ書いて、引き出しの中の処理を実行してみます。</p>
+        </div>
+<pre class="code">
+<span class="c1">desk</span>:approveRequest(<span class="c1">string</span> reviewResult){
+   <span class="c1">drawer</span>:mainDrawer(action01){
+      host.var.string:result(id, reviewResult)
+      <span class="c1">inreturn</span>:decision{
+         stamp(result):approved{
+            <span class="c2">"決裁印が押されたので次工程へ。\n"</span>
+         }
+         :rejected{
+            <span class="c2">"差し戻しです。\n"</span>
+         }
+      }
+   }
+   <span class="c1">outreturn</span>{ decision }
+}
+</pre>
+      </div>
+    </section>
+
+    <!-- ============ control flow ============ -->
+    <section class="block" id="control">
+      <div class="wrap">
+        <div class="block-head">
+          <span class="kicker">03 — Reference</span>
+          <h2>制御構文</h2>
+          <p>ネストする構文（<code class="inline">if</code>の中に<code class="inline">for</code>があるなど）は、テキスト上で一番外側にあるものから正しい順で処理される統一ディスパッチャで動いています。</p>
+        </div>
+        <div class="ref-grid">
+          <div class="ref-card">
+            <div class="ref-title"><h3>if / elif / else</h3><span class="badge">分岐</span></div>
+            <p><code class="inline">if(条件):true{...} elif(条件):true{...} else{...}</code></p>
+          </div>
+          <div class="ref-card">
+            <div class="ref-title"><h3>switch / case</h3><span class="badge">分岐</span></div>
+            <p><code class="inline">switch(対象):case("値"){...} default{...}</code></p>
+          </div>
+          <div class="ref-card">
+            <div class="ref-title"><h3>while</h3><span class="badge">ループ</span></div>
+            <p><code class="inline">while(条件):true{...}</code>。安全上限あり（既定1000回）。<code class="inline">@setin</code>で名前を付けて明示的に止めることもできる。</p>
+          </div>
+          <div class="ref-card">
+            <div class="ref-title"><h3>for</h3><span class="badge">ループ</span></div>
+            <p><code class="inline">for(dis.var:名前 in ++1):N{...} end{...}</code></p>
+          </div>
+          <div class="ref-card">
+            <div class="ref-title"><h3>forever</h3><span class="badge">ループ</span></div>
+            <p><code class="inline">forever{...}</code>（引数なし）。同期実行のため安全上限つき。<a href="#setin">@setin制御</a>と組み合わせて使う想定。</p>
+          </div>
+          <div class="ref-card">
+            <div class="ref-title"><h3>try / catch</h3><span class="badge">例外</span></div>
+            <p><code class="inline">try{...} catch(dis.var:変数){...} end{...}</code></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ class ============ -->
+    <section class="block" id="class">
+      <div class="wrap">
+        <div class="block-head">
+          <span class="kicker">04 — Reference</span>
+          <h2>クラス</h2>
+          <p>その場でインスタンスを作って使い切る、簡易なフィールド＋コンストラクタです。</p>
+        </div>
+<pre class="code"><span class="c1">set:class</span>(Worker, <span class="c1">string</span>:name, <span class="c1">int</span>:age)
+<span class="c1">class</span>:Worker(self, self.<span class="c1">string</span>:name, self.<span class="c1">int</span>:age), <span class="c1">init</span>(self.<span class="c1">string</span>:name, self.<span class="c1">int</span>:age | <span class="c2">"no-name"</span>, 0){
+   <span class="c2">"Worker初期化: "</span>, self.name, <span class="c2">" ("</span>, self.age, <span class="c2">")\n"</span>
+}
+
+<span class="c3">// 使う側</span>
+<span class="c1">new</span>:Worker(<span class="c2">"Alice"</span>, 30)
+</pre>
+      </div>
+    </section>
+
+    <!-- ============ object ============ -->
+    <section class="block" id="object">
+      <div class="wrap">
+        <div class="block-head">
+          <span class="kicker">05 — Reference</span>
+          <h2>オブジェクト（<code class="inline" style="font-size:.7em;">object:</code>）</h2>
+          <p>クラスとは別物。複数のdrawer間で値を持ち回るための、共有／専用／使い捨てのレコードです。<code class="inline">desk</code>の外側でスキーマを宣言します。</p>
+        </div>
+<pre class="code"><span class="c1">object</span>:UserProfile(type=global){
+   userName:<span class="c1">string</span>:notnull
+   age:<span class="c1">int</span>
+   code:<span class="c1">string</span>:len[4]
+   mail:<span class="c1">string</span>:re[^[a-z]+@[a-z]+$]
+}
+
+<span class="c1">desk</span>:saveProfile(<span class="c1">string</span> name){
+   @object(name=UserProfile)
+   <span class="c1">drawer</span>:d(action01){
+      host.var.string:name(id, name)
+      <span class="c1">inreturn</span>:r{
+         <span class="c1">object</span>:UserProfile.<span class="c1">new</span>(userName:<span class="c1">string</span>=name, age:<span class="c1">int</span>=20, code:<span class="c1">string</span>=AB12, mail:<span class="c1">string</span>=abc@xyz),
+         <span class="c2">"登録名: "</span>, UserProfile.userName, <span class="c2">"\n"</span>
+      }
+   }
+   <span class="c1">outreturn</span>{ r }
+}
+</pre>
+
+        <div class="ref-grid" style="margin-top:26px;">
+          <div class="ref-card">
+            <div class="ref-title"><h3>type=global</h3><span class="badge">共有</span></div>
+            <p>同じ <code class="inline">@object(name=名前)</code> タグを付けた<strong>複数のdrawerで共有</strong>される共有メモリ。</p>
+          </div>
+          <div class="ref-card">
+            <div class="ref-title"><h3>type=host</h3><span class="badge">専用</span></div>
+            <p><code class="inline">@object(name=名前)</code> を付けた<strong>1つのdrawer専用</strong>の領域。他のdrawerからは見えない。</p>
+          </div>
+          <div class="ref-card">
+            <div class="ref-title"><h3>type=null</h3><span class="badge">使い捨て</span></div>
+            <p>スコープ指定なし。<strong>そのdesk呼び出し1回の中だけ</strong>有効なローカル値。</p>
+          </div>
+          <div class="ref-card">
+            <div class="ref-title"><h3>フィールド制約</h3><span class="badge">検証</span></div>
+            <p><code class="inline">notnull</code>（必須）／<code class="inline">len[N]</code>（最大文字数）／<code class="inline">re[正規表現]</code>（パターン一致）が使える。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ setin control ============ -->
+    <section class="block" id="setin">
+      <div class="wrap">
+        <div class="block-head">
+          <span class="kicker">06 — Reference</span>
+          <h2>@setin による名前付き制御</h2>
+          <p><code class="inline">while</code>・<code class="inline">forever</code>の直前に <code class="inline">@setin(name=名前, type=ctrl)</code> を置くと、外部から止めたり再開したりできる名前付きハンドルになります。</p>
+        </div>
+<pre class="code"><span class="c1">desk</span>:watchdogDemo(<span class="c1">string</span> dummy){
+   <span class="c1">drawer</span>:d(action01){
+      host.var.string:dummy(id, dummy)
+      <span class="c1">inreturn</span>:r{
+         @setin(name=watchdog, type=ctrl)
+         <span class="c1">forever</span>{
+            <span class="c2">"ここは危険地帯。stopが効いていれば実行されない\n"</span>
+         }
+      }
+   }
+   <span class="c1">outreturn</span>{ r }
+}
+
+<span class="c1">timing</span>:forever.start{
+   setin:watchdog.stop()
+}
+</pre>
+        <div class="ref-grid" style="margin-top:26px;">
+          <div class="ref-card"><div class="ref-title"><h3>停止</h3><span class="badge">stop</span></div><p><code class="inline">setin:名前.stop()</code> — 次回以降のループ実行を止める。</p></div>
+          <div class="ref-card"><div class="ref-title"><h3>再開</h3><span class="badge">start</span></div><p><code class="inline">setin:名前.start()</code> / <code class="inline">setin:名前.start(引数)</code> — 停止状態を解除する。</p></div>
+          <div class="ref-card"><div class="ref-title"><h3>削除</h3><span class="badge">delete</span></div><p><code class="inline">setin:名前.delete(type=comp)</code> は完全削除（復元不可）。<code class="inline">type=leav</code> は一時削除。</p></div>
+          <div class="ref-card"><div class="ref-title"><h3>復元</h3><span class="badge">add</span></div><p><code class="inline">setin:名前.add()</code> — <code class="inline">type=leav</code>で削除された名前を復元する。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ lock ============ -->
+    <section class="block" id="lock">
+      <div class="wrap">
+        <div class="block-head">
+          <span class="kicker">07 — Reference</span>
+          <h2>ロック</h2>
+          <p>引き出しやデスク単位で、鍵付き引き出しのような排他ロックがかけられます。</p>
+        </div>
+<pre class="code"><span class="c1">lock:drawer</span>(sharedResource) {
+   <span class="c2">"同時に複数の処理がこの引き出しを開けられないようにします。\n"</span>
+}
+<span class="c1">unlock:drawer</span>(sharedResource)
+
+<span class="c3">// timing指定つきのロック/アンロック</span>
+sharedDesk.lock(type=desk, timing=desk:targetDesk.start)
+sharedDesk.unlock(type=desk, timing=desk:targetDesk.end)
+</pre>
+      </div>
+    </section>
+
+    <!-- ============ misc ============ -->
+    <section class="block" id="misc">
+      <div class="wrap">
+        <div class="block-head">
+          <span class="kicker">08 — Reference</span>
+          <h2>その他の構文</h2>
+        </div>
+        <div class="ref-grid">
+          <div class="ref-card"><div class="ref-title"><h3>変数の即時破棄</h3><span class="badge">shred / delete</span></div><p><code class="inline">shred:var(名前)</code> / <code class="inline">var:名前.delete()</code> で変数を即座に破棄。</p></div>
+          <div class="ref-card"><div class="ref-title"><h3>デスクの並列合流</h3><span class="badge">meeting:join</span></div><p><code class="inline">meeting:join(deskA("arg"), deskB("arg2"))</code> で複数デスクの結果を1つに合流。</p></div>
+          <div class="ref-card"><div class="ref-title"><h3>デスク間メッセージ</h3><span class="badge">outbox / inbox</span></div><p><code class="inline">outbox:send(key, value)</code> / <code class="inline">inbox:receive(key)</code>。</p></div>
+          <div class="ref-card"><div class="ref-title"><h3>変更履歴の記録</h3><span class="badge">audit:trail</span></div><p><code class="inline">audit:trail(変数名)</code> で変数の変更履歴を記録。</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ pairing rule ============ -->
+    <section class="block" id="pairing">
+      <div class="wrap">
+        <div class="block-head">
+          <span class="kicker">09 — Convention</span>
+          <h2>@タグと操作構文のペアリング規則</h2>
+          <p>一部の構文は、desk/drawerの直前に付けるアノテーション（<code class="inline">@タグ(...)</code>）と、対応する操作構文（<code class="inline">タグ:名前.method()</code>）がセットになっています。今後この形式の構文が増える場合も、このペアリングに揃えます。</p>
+        </div>
+        <table class="pair-table">
+          <thead><tr><th>アノテーション</th><th>対応する操作構文</th><th>用途</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code class="inline">@object(name=名前)</code></td>
+              <td><code class="inline">object:名前.new(...)</code><br><code class="inline">名前.フィールド名</code></td>
+              <td>オブジェクトスキーマのレコード作成・参照</td>
+            </tr>
+            <tr>
+              <td><code class="inline">@setin(name=名前, type=ctrl)</code></td>
+              <td><code class="inline">setin:名前.stop()</code> / <code class="inline">.start()</code> / <code class="inline">.delete(type=comp|leav)</code> / <code class="inline">.add()</code></td>
+              <td><code class="inline">while</code> / <code class="inline">forever</code>の名前付き外部制御</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="color:var(--ink-soft); font-size:.86rem; margin-top:14px;">※ <code class="inline">set:</code> は <code class="inline">set:var</code> / <code class="inline">set:class</code> / <code class="inline">set:desk</code> と衝突するため、<code class="inline">@set</code> ではなく <code class="inline">@setin</code> / <code class="inline">setin:</code> にしています。</p>
+      </div>
+    </section>
+
+    <!-- ============ engine structure ============ -->
+    <section class="block" id="engines">
+      <div class="wrap">
+        <div class="block-head">
+          <span class="kicker">10 — Reading Room</span>
+          <h2>エンジン構成</h2>
+          <p>このリポジトリには2つのエンジン実装が同梱されています。</p>
+        </div>
+        <table class="file-table" style="margin-bottom:30px;">
+          <thead><tr><th>ディレクトリ</th><th>内容</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">index.js / src/*.js（ルート直下）</td><td>最初期からある純JS実装（<code class="inline">src/blocks/</code>にIf/Switch/While等の個別実装）</td></tr>
+            <tr><td class="mono">index.js / src/*.js（TS由来）</td><td>継続的に修正・機能追加しているTypeScript実装。コンパイル後は同じ配置</td></tr>
+          </tbody>
+        </table>
+
+        <div class="block-head" style="margin-bottom:14px;">
+          <p style="margin:0;">TS由来エンジンの <code class="inline">src/blocks/</code> 構成：</p>
+        </div>
+        <table class="file-table">
+          <thead><tr><th>ファイル</th><th>内容</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">BlockContext.ts</td><td>全ブロック共有の状態＆ヘルパー（ロック状態、@setin制御ハンドル、objectストレージなど）</td></tr>
+            <tr><td class="mono">NestableDispatcher.ts</td><td>if/switch/while/try/forever/for/lock:drawer/intern:desk/stamp/shiftを、テキスト上で一番外側にあるものから処理する統一ディスパッチャ</td></tr>
+            <tr><td class="mono">DrawerLockBlock.ts</td><td>unlock:drawer / @drawerタグ / 名前.lock・unlock文</td></tr>
+            <tr><td class="mono">VarLifecycleBlock.ts</td><td>shred:var / var:名前.delete()</td></tr>
+            <tr><td class="mono">ControlBlock.ts</td><td>@setinで名前を付けたforever/whileの操作</td></tr>
+            <tr><td class="mono">ObjectBlock.ts</td><td>object:名前.new(...) / 名前.フィールド名</td></tr>
+            <tr><td class="mono">MeetingJoinBlock.ts</td><td>meeting:join(...)</td></tr>
+            <tr><td class="mono">MailboxBlock.ts</td><td>outbox:send / inbox:receive</td></tr>
+            <tr><td class="mono">AuditTrailBlock.ts</td><td>audit:trail(...)</td></tr>
+            <tr><td class="mono">ClassBlock.ts</td><td>set:class / class: / new: / インスタンスのフィールド参照</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ applications ============ -->
+    <section class="block" id="applications">
+      <div class="wrap">
+        <div class="block-head">
+          <span class="kicker">11 — Reading Room</span>
+          <h2>応用法</h2>
+        </div>
+        <div class="app-grid">
+          <div class="app-card">
+            <div class="num">01</div>
+            <h3>CLIツールとして</h3>
+            <p>Node.jsから <code class="inline">index.js</code> を直接実行し、承認ゲート・監査ログ・排他ロック・共有オブジェクトを使った業務フローを、比喩ベースの自動化スクリプトとして走らせる。</p>
+          </div>
+          <div class="app-card">
+            <div class="num">02</div>
+            <h3>ブラウザの動的HTML操作</h3>
+            <p><code class="inline">wnode.js</code> をHTMLに埋め込み、<code class="inline">main.ds</code>をブラウザ上で実行。<code class="inline">HTML.document.〜</code>経由でDOMを書き換えたり、イベントを後付けしたりできる。</p>
+          </div>
+          <div class="app-card">
+            <div class="num">03</div>
+            <h3>学習・実験用の自作言語として</h3>
+            <p>構文追加は <code class="inline">src/blocks/</code> に1機能1ファイルで追加し、ネストする構文なら<code class="inline">NestableDispatcher.ts</code>に登録するだけ。独自構文の試作台として扱いやすい。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ caution ============ -->
+    <section class="block" id="caution">
+      <div class="wrap">
+        <div class="block-head">
+          <span class="kicker">12 — Reading Room</span>
+          <h2>使うときの注意点</h2>
+        </div>
+
+        <div class="memo">
+          <h3>eval相当の仕組みで動いている</h3>
+          <p>式の評価は内部的に <code class="inline">new Function(...)</code> を使っています。<code class="inline">process</code> / <code class="inline">require</code> / <code class="inline">Function</code> / <code class="inline">eval</code> / <code class="inline">constructor</code> / <code class="inline">__proto__</code> などを含む式は拒否しますが、これは簡易的なブロックリストで完全なサンドボックスではありません。<strong>信頼できない第三者が書いた.dsを実行するのには向いていません。</strong></p>
+
+          <h3>カンマの扱い</h3>
+          <p>出力の組み立ては「トップレベルのカンマ」で区切る方式です。文字列内・括弧内のカンマは区切りとして扱わないよう修正済みですが、複雑な式では括弧の対応やクォートの閉じ忘れに注意してください。</p>
+
+          <h3>構文エラーは出力に混ざる</h3>
+          <p>失敗を黙って握りつぶさない設計のため、式を間違えると <code class="inline">[Eval Warning]</code> がそのまま出力文字列に出てきます。デバッグの目印として使えます。</p>
+
+          <h3>while / foreverには安全上限がある</h3>
+          <p>無限ループでハングしないよう、既定で最大1000回まで実行すると強制的に打ち切られます。それより前に確実に止めたい場合は <code class="inline">@setin(name=名前, type=ctrl)</code> を付けて <code class="inline">setin:名前.stop()</code> を呼んでください。</p>
+
+          <h3>状態がプロセス内に残り続ける</h3>
+          <p>ロック状態・監査ログ・クラスのインスタンス・objectの共有レコード・@setinの制御ハンドルは、明示的にクリアする手段がありません（objectのtype=nullのみdesk呼び出しごとにリセット）。1回のスクリプト実行で完結させる用途を想定しています。</p>
+
+          <h3>生成メッセージに実行可能な構文パターンを書かない</h3>
+          <p>内部の確認メッセージに <code class="inline">名前.add()</code> のような実行可能構文をそのまま含めると、次のスキャンで本物の呼び出しとして誤爆することがあります（実際に踏んだバグです）。独自構文を追加する際も注意してください。</p>
+
+          <h3>正規表現ベースの簡易パーサーである</h3>
+          <p>文字列の中に <code class="inline">{</code> や <code class="inline">}</code> を書くと、波括弧カウントを誤爆させることがあります。厳密なAST/トークナイザではないため、複雑な入れ子構造は小さく試してから組み込むのがおすすめです。</p>
+
+          <h3>@タグは直後の構文にしか紐付かない</h3>
+          <p><code class="inline">@object(name=X)</code> はその直後の<code class="inline">drawer:</code>に、<code class="inline">@setin(name=X, type=ctrl)</code> はその直後の<code class="inline">while</code>/<code class="inline">forever</code>に、空白・改行を挟んで直接続けて書いてください。間に他の文が挟まると紐付きません。</p>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      deskScript documentation — filed under /desk/drawer/. handle with care.
+    </footer>
+
+  </main>
+</div>
+
+</body>
+</html>
